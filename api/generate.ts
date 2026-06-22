@@ -8,6 +8,15 @@ const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages'
 const MODEL = 'claude-sonnet-4-6'
 const MAX_TOKENS = 4096
 
+// Detect image media type from base64 magic bytes — never hardcode image/jpeg
+function detectMediaType(base64: string): string {
+  if (base64.startsWith('/9j/')) return 'image/jpeg'
+  if (base64.startsWith('iVBORw0KGgo')) return 'image/png'
+  if (base64.startsWith('R0lGOD')) return 'image/gif'
+  if (base64.startsWith('UklGR')) return 'image/webp'
+  return 'image/jpeg'
+}
+
 // Rate limit: 10 requests per IP per 60s
 async function checkRateLimit(ip: string): Promise<{ limited: boolean; retryAfter?: number }> {
   const kvUrl = process.env.KV_REST_API_URL
@@ -163,7 +172,7 @@ export default async function handler(req: Request): Promise<Response> {
       content: [
         {
           type: 'image',
-          source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 },
+          source: { type: 'base64', media_type: detectMediaType(imageBase64), data: imageBase64 },
         },
         { type: 'text', text: prompt },
       ],
