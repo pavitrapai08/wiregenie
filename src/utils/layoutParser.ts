@@ -5,7 +5,7 @@ export class LayoutParser {
 
   append(chunk: string): WireframeLayout | null {
     this.buffer += chunk
-    return this.tryParse()
+    return this.tryParse(false)
   }
 
   flush(): WireframeLayout | null {
@@ -16,35 +16,33 @@ export class LayoutParser {
     this.buffer = ''
   }
 
-  // Strip markdown code fences — Claude sometimes wraps JSON in ```json ... ```
-  private stripFences(raw: string): string {
-    // Complete fence: ```json\n{...}\n```
-    const complete = raw.match(/^```(?:json)?\s*\n?([\s\S]*?)```\s*$/)
-    if (complete) return complete[1].trim()
-
-    // Opening fence only (stream not finished yet): ```json\n{...
-    const opening = raw.match(/^```(?:json)?\s*\n?([\s\S]*)$/)
-    if (opening) return opening[1].trim()
-
-    return raw
+  // Extract the JSON object from the buffer, stripping any leading/trailing
+  // text (markdown fences, commentary, etc.)
+  private extractJSON(raw: string): string {
+    const start = raw.indexOf('{')
+    const end = raw.lastIndexOf('}')
+    if (start === -1) return raw
+    if (end === -1 || end < start) return raw.slice(start) // truncated — return from first {
+    return raw.slice(start, end + 1)
   }
 
-  private tryParse(strict = false): WireframeLayout | null {
-    const raw = this.stripFences(this.buffer.trim())
-    if (!raw) return null
+  private tryParse(strict: boolean): WireframeLayout | null {
+    const raw = this.extractJSON(this.buffer.trim())
+    if (!raw || raw[0] !== '{') return null
 
     // Try exact parse first
     try {
       const parsed = JSON.parse(raw) as WireframeLayout
       if (isValidLayout(parsed)) return parsed
-    } catch {
+      // Parsed OK but missing required fields — not usable
       if (strict) return null
+    } catch {
+      // Not complete JSON yet — fall through to heuristic recovery
     }
 
-    if (strict) return null
-
-    // Heuristic: close incomplete JSON to get a partial layout for progressive rendering
-    const closingAttempts = [']}', ']}]', ']}]}', ']}]}]', '}']
+    // Heuristic: close incomplete JSON to render partial layout progressively.
+    // Also used in flush() as fallback when JSON was truncated by token limit.
+    const closingAttempts = ['}', ']}', ']}]', ']}]}', ']}]}]', ']}]}]}']
     for (const closing of closingAttempts) {
       try {
         const partial = JSON.parse(raw + closing) as WireframeLayout

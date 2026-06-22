@@ -6,7 +6,7 @@ export const config = { runtime: 'edge' }
 
 const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages'
 const MODEL = 'claude-sonnet-4-6'
-const MAX_TOKENS = 2048
+const MAX_TOKENS = 4096
 
 // Rate limit: 10 requests per IP per 60s
 async function checkRateLimit(ip: string): Promise<{ limited: boolean; retryAfter?: number }> {
