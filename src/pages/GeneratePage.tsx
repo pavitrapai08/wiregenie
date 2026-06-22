@@ -4,7 +4,6 @@ import { CanvasToolbar } from '../components/canvas/CanvasToolbar.js'
 import { InputPanel } from '../components/input/InputPanel.js'
 import { SettingsPanel } from '../components/settings/SettingsPanel.js'
 import { RefinementChat } from '../components/chat/RefinementChat.js'
-import { ExportBar } from '../components/layout/ExportBar.js'
 import { useSessionStore } from '../store/useSessionStore.js'
 import { useGenerate } from '../hooks/useGenerate.js'
 import { useAutoSave } from '../hooks/useAutoSave.js'
@@ -16,7 +15,6 @@ export function GeneratePage() {
   const { generationStatus, activeSessionId, sessions } = useSessionStore()
   const { generate } = useGenerate()
 
-  // Capture thumbnail after each generation
   useAutoSave(canvasRef)
 
   const isStreaming = generationStatus === 'streaming'
@@ -24,34 +22,30 @@ export function GeneratePage() {
   const hasLayout = !!session?.layout
 
   async function handleSubmit(prompt: string, imageBase64?: string) {
-    const isRefinement = hasLayout
-    await generate(prompt, imageBase64, isRefinement)
+    await generate(prompt, imageBase64, false)
   }
 
   return (
     <>
-      <CanvasToolbar
-        canvasRef={canvasRef}
-        onOpenSettings={() => setShowSettings(true)}
-      />
-
-      <ExportBar />
+      <CanvasToolbar canvasRef={canvasRef} />
 
       <div
         ref={canvasRef}
-        style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+        className="canvas-wrapper"
       >
         <WireframeCanvas />
       </div>
 
-      {hasLayout && <RefinementChat />}
-
-      <InputPanel onSubmit={handleSubmit} disabled={isStreaming} />
+      {/* Show RefinementChat once a layout exists, InputPanel only before first generation */}
+      {hasLayout
+        ? <RefinementChat />
+        : <InputPanel onSubmit={handleSubmit} disabled={isStreaming} />
+      }
 
       {showSettings && (
         <>
           <div
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.3)', zIndex: 99 }}
+            className="settings-overlay"
             onClick={() => setShowSettings(false)}
             aria-hidden="true"
           />

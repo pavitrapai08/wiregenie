@@ -114,7 +114,8 @@ function normalizeRow(row: WireframeRow): WireframeRow[] {
 function isPartialLayout(obj: unknown): obj is WireframeLayout {
   if (!obj || typeof obj !== 'object') return false
   const o = obj as Record<string, unknown>
-  return typeof o['title'] === 'string' && Array.isArray(o['rows'])
+  // title is optional — refinement responses return { rows: [...] } without a title
+  return Array.isArray(o['rows']) && (o['rows'] as unknown[]).length > 0
 }
 
 function isValidLayout(obj: unknown): obj is WireframeLayout {

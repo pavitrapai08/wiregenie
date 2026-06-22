@@ -31,35 +31,28 @@ export function RefinementChat() {
     }
   }
 
-  function handlePill(prompt: string) {
-    void generate(prompt, undefined, true)
-  }
-
-  if (history.length === 0) return null
-
   return (
     <div className="refinement-chat">
-      <div className="chat-messages" aria-label="Conversation history" aria-live="polite">
-        {history.map((msg, i) => (
-          <div
-            key={i}
-            className={`chat-message chat-message--${msg.role}`}
-          >
-            <span className="chat-message__role">
-              {msg.role === 'user' ? 'You' : 'WireGenie'}
-            </span>
-            <span className="chat-message__text">{msg.content}</span>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
+      {history.length > 0 && (
+        <div className="chat-messages" aria-label="Conversation history" aria-live="polite">
+          {history.map((msg, i) => (
+            <div key={i} className={`chat-message chat-message--${msg.role}`}>
+              <span className="chat-message__role">
+                {msg.role === 'user' ? 'You' : 'WireGenie'}
+              </span>
+              <span className="chat-message__text">{msg.content}</span>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+      )}
 
-      <QuickPills onSelect={handlePill} disabled={isStreaming} />
+      <QuickPills onSelect={(p) => void generate(p, undefined, true)} disabled={isStreaming} />
 
       <div className="chat-input-row">
         <textarea
           className="chat-input"
-          placeholder="Refine the layout… (Enter to send)"
+          placeholder="Refine the layout… (Enter to send, Shift+Enter for new line)"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKey}

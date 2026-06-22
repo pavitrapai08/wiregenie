@@ -773,20 +773,17 @@ html, body, #root {
   background: var(--color-surface);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 16px;
-  max-height: 280px;
+  gap: 6px;
+  padding: 8px 16px;
   flex-shrink: 0;
 }
 
 .chat-messages {
-  flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 0;
-  max-height: 140px;
+  gap: 4px;
+  max-height: 80px;
 }
 
 .chat-message {
@@ -1117,6 +1114,97 @@ html, body, #root {
 .version-entry__time {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
+}
+
+/* ─── Canvas wrapper ─────────────────────────────────────────────────────── */
+.canvas-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Error toast ────────────────────────────────────────────────────────── */
+.error-toast {
+  position: fixed;
+  top: calc(var(--header-height) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: var(--font-size-sm);
+  padding: 10px 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.15);
+  cursor: pointer;
+  white-space: nowrap;
+  animation: toast-in .2s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+[data-theme="dark"] .error-toast {
+  background: #2d1515;
+  border-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+/* ─── Settings overlay ───────────────────────────────────────────────────── */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .35);
+  z-index: 99;
+}
+
+/* ─── Print / PDF export ─────────────────────────────────────────────────── */
+@media print {
+  .sidebar,
+  .header,
+  .canvas-toolbar,
+  .refinement-chat,
+  .input-panel,
+  .error-toast {
+    display: none !important;
+  }
+
+  .app-shell {
+    display: block;
+  }
+
+  .main-area {
+    display: block;
+    width: 100%;
+  }
+
+  .canvas-wrapper {
+    display: block;
+    overflow: visible;
+    height: auto;
+  }
+
+  .canvas-area {
+    overflow: visible;
+    height: auto;
+    padding: 0;
+  }
+
+  .canvas-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .widget-card {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
