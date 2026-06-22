@@ -5,25 +5,25 @@ import { useSessionStore } from '../../store/useSessionStore.js'
 import { useGenerate } from '../../hooks/useGenerate.js'
 
 interface Props {
-  canvasRef?: React.RefObject<HTMLElement>
-  onOpenSettings: () => void
+  canvasRef?: React.RefObject<HTMLElement | null>
+  onOpenSettings?: () => void
 }
 
-export function CanvasToolbar({ canvasRef, onOpenSettings }: Props) {
-  const { activeSessionId, sessions, undo, generationStatus } = useSessionStore()
+export function CanvasToolbar({ canvasRef }: Props) {
+  const { activeSessionId, sessions, generationStatus } = useSessionStore()
   const { getGuide } = useGenerate()
   const guideBtnRef = useRef<HTMLButtonElement>(null)
 
   const session = sessions.find((s) => s.id === activeSessionId)
   const hasLayout = !!session?.layout
-  const hasHistory = (session?.versionStack.length ?? 0) > 0
   const isStreaming = generationStatus === 'streaming'
 
   async function handleExportPng() {
     if (!canvasRef?.current || !hasLayout) return
     try {
       const canvas = await html2canvas(canvasRef.current, {
-        backgroundColor: window.getComputedStyle(document.body).getPropertyValue('--color-bg') || '#ffffff',
+        backgroundColor:
+          window.getComputedStyle(document.body).getPropertyValue('--color-bg') || '#ffffff',
         scale: 2,
         logging: false,
       })
@@ -47,21 +47,9 @@ export function CanvasToolbar({ canvasRef, onOpenSettings }: Props) {
   return (
     <div className="canvas-toolbar" role="toolbar" aria-label="Canvas actions">
       <button
-        className="btn btn--icon"
-        title="Undo"
-        disabled={!hasHistory || isStreaming}
-        onClick={() => activeSessionId && undo(activeSessionId)}
-        aria-label="Undo"
-      >
-        ↩
-      </button>
-
-      <div className="canvas-toolbar__sep" />
-
-      <button
         className="btn"
         disabled={!hasLayout || isStreaming}
-        onClick={handleExportPng}
+        onClick={() => void handleExportPng()}
         title="Export as PNG"
       >
         ↓ PNG
@@ -71,22 +59,13 @@ export function CanvasToolbar({ canvasRef, onOpenSettings }: Props) {
         ref={guideBtnRef}
         className="btn"
         disabled={!hasLayout || isStreaming}
-        onClick={handleDevGuide}
+        onClick={() => void handleDevGuide()}
         title="Download developer guide as Markdown"
       >
         📄 Dev Guide
       </button>
 
       <div style={{ flex: 1 }} />
-
-      <button
-        className="btn"
-        onClick={onOpenSettings}
-        title="Settings"
-        aria-label="Open settings"
-      >
-        ⚙ Settings
-      </button>
     </div>
   )
 }

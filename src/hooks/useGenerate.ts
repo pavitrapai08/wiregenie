@@ -85,7 +85,9 @@ export function useGenerate() {
           }
           appendChat(activeSessionId, {
             role: 'assistant',
-            content: `Generated layout: "${final.title}" with ${final.rows.length} rows`,
+            content: isRefinement
+              ? `Refined layout — ${final.rows.length} rows`
+              : `Generated "${final.title}" — ${final.rows.length} rows`,
           })
           setGenerationStatus('complete')
         } else {

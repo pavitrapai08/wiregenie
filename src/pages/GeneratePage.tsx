@@ -1,19 +1,25 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { WireframeCanvas } from '../components/canvas/WireframeCanvas.js'
 import { CanvasToolbar } from '../components/canvas/CanvasToolbar.js'
 import { InputPanel } from '../components/input/InputPanel.js'
 import { SettingsPanel } from '../components/settings/SettingsPanel.js'
+import { RefinementChat } from '../components/chat/RefinementChat.js'
+import { ExportBar } from '../components/layout/ExportBar.js'
 import { useSessionStore } from '../store/useSessionStore.js'
 import { useGenerate } from '../hooks/useGenerate.js'
+import { useAutoSave } from '../hooks/useAutoSave.js'
+import { useUIStore } from '../store/useUIStore.js'
 
 export function GeneratePage() {
   const canvasRef = useRef<HTMLDivElement>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const { showSettings, setShowSettings } = useUIStore()
   const { generationStatus, activeSessionId, sessions } = useSessionStore()
   const { generate } = useGenerate()
 
-  const isStreaming = generationStatus === 'streaming'
+  // Capture thumbnail after each generation
+  useAutoSave(canvasRef)
 
+  const isStreaming = generationStatus === 'streaming'
   const session = sessions.find((s) => s.id === activeSessionId)
   const hasLayout = !!session?.layout
 
@@ -26,23 +32,30 @@ export function GeneratePage() {
     <>
       <CanvasToolbar
         canvasRef={canvasRef}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => setShowSettings(true)}
       />
 
-      <div ref={canvasRef} style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <ExportBar />
+
+      <div
+        ref={canvasRef}
+        style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+      >
         <WireframeCanvas />
       </div>
 
+      {hasLayout && <RefinementChat />}
+
       <InputPanel onSubmit={handleSubmit} disabled={isStreaming} />
 
-      {settingsOpen && (
+      {showSettings && (
         <>
           <div
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.3)', zIndex: 99 }}
-            onClick={() => setSettingsOpen(false)}
+            onClick={() => setShowSettings(false)}
             aria-hidden="true"
           />
-          <SettingsPanel onClose={() => setSettingsOpen(false)} />
+          <SettingsPanel onClose={() => setShowSettings(false)} />
         </>
       )}
     </>

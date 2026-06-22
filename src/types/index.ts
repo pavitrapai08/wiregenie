@@ -145,6 +145,7 @@ export interface WireSession {
   chatHistory: ChatMessage[]
   versionStack: SessionVersion[]
   thumbnailDataUrl?: string
+  tags: string[]
   createdAt: number
   updatedAt: number
 }

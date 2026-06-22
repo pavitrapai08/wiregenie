@@ -1,13 +1,9 @@
 import { useSessionStore } from '../../store/useSessionStore.js'
 import { useUIStore } from '../../store/useUIStore.js'
 
-interface Props {
-  onOpenSettings: () => void
-}
-
-export function Header({ onOpenSettings }: Props) {
+export function Header() {
   const { activeSessionId, sessions, generationStatus, streamingError } = useSessionStore()
-  const { setShowSidebar, showSidebar } = useUIStore()
+  const { setShowSidebar, showSidebar, setShowSettings } = useUIStore()
 
   const session = sessions.find((s) => s.id === activeSessionId)
   const isStreaming = generationStatus === 'streaming'
@@ -39,7 +35,11 @@ export function Header({ onOpenSettings }: Props) {
               Generating…
             </span>
           )}
-          <button className="btn" onClick={onOpenSettings} aria-label="Settings">
+          <button
+            className="btn"
+            onClick={() => setShowSettings(true)}
+            aria-label="Settings"
+          >
             ⚙ Settings
           </button>
         </div>

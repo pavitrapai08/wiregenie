@@ -74,7 +74,7 @@
 
 | File | Description |
 |------|-------------|
-| `api/generate.ts` | Edge, Vercel KV sliding window rate limit (10/IP/60s), SSE→plain-text TransformStream, max_tokens=2048 |
+| `api/generate.ts` | Edge, Vercel KV sliding window rate limit (10/IP/60s), SSE→plain-text TransformStream, max_tokens=4096 |
 | `api/guide.ts` | Edge, same SSE transform pattern, Markdown dev guide streaming |
 
 ### Input Engine (F-01)
@@ -143,7 +143,7 @@
 |----------|--------|
 | `lib/prompts.ts` at project root (not `src/`) | Edge Runtime cannot import from `src/` at runtime; project root is importable from both `api/` and `src/` |
 | SSE TransformStream in API routes | Raw Anthropic SSE body sent to browser causes parsing errors; transform strips `event:`/`data:` envelope, emits only `delta.text` as plain UTF-8 text |
-| `max_tokens: 2048` | Keeps generation under Vercel Hobby 30s Edge timeout for typical 4–8 row layouts |
+| `max_tokens: 4096` | Raised post-deployment from 2048 — a full 6-row dashboard needs ~3500 tokens; 2048 truncated JSON mid-stream causing parse failures |
 | `while (!chunk.done)` instead of `while (true)` | ESLint `no-constant-condition` rule — refactored to explicit condition loop |
 | VoiceInput inline type declarations | TypeScript 5.5 with `"lib": ["DOM"]` doesn't expose `SpeechRecognition` as a globally constructable type; declared minimal interface inline |
 | Heatmap uses CSS opacity | Simpler than SVG rect matrix for wireframe quality; opacity scale 0.1–1.0 on `--chart-1` |
@@ -210,10 +210,61 @@ E2E: Playwright installed, suite starts Phase 2.
 
 ---
 
+## Post-Deployment Fixes
+
+Five bugs were discovered through live production testing after the initial gate pass. All were resolved before Phase 2 was started.
+
+### Fix 1 — vercel.json invalid functions block (commit 474f521)
+
+**Symptom:** Vercel build failed with "Function Runtimes must have a valid version".  
+**Root cause:** The `"functions"` block in `vercel.json` used `"api/**/*.ts": { "runtime": "edge" }` syntax, which Vercel interprets as a versioned package name (e.g. `now-php@1.0.0`). That syntax is not valid for Edge Runtime.  
+**Fix:** Removed the `"functions"` block entirely. Edge Runtime is declared per-file via `export const config = { runtime: 'edge' }` at the top of each `api/` file — no `vercel.json` entry needed.
+
+### Fix 2 — "Could not parse response as a valid layout" on first generation (commit 160441f)
+
+**Symptom:** Every generation attempt returned the error banner; no wireframe rendered.  
+**Root cause:** Claude wrapped its JSON output in ` ```json ``` ` markdown fences despite the system prompt instruction. The raw buffer fed to `JSON.parse()` started with ` ``` ` and was not valid JSON.  
+**Fix (two-part):**
+1. `lib/prompts.ts` — moved "Respond with ONLY raw JSON" to the very first line of the system prompt, above all other instructions, and replaced TypeScript-style schema with a concrete JSON example.
+2. `src/utils/layoutParser.ts` — added `extractJSON()`: finds the first `{` and last `}` in the buffer and slices to that range, discarding any preamble or trailing fence characters.
+
+### Fix 3 — Partial render then parse failure for full dashboards (commit 0b3e92e)
+
+**Symptom:** The first 2 KPI cards rendered, then generation stopped with "Could not parse response as a valid layout".  
+**Root cause:** `max_tokens: 2048` was too low. A full 6-row dashboard needs approximately 3500 tokens; Claude's response was truncated mid-JSON, leaving the stream buffer with unclosed braces that `JSON.parse()` rejected even with `extractJSON()` applied.  
+**Fix (two-part):**
+1. Raised `MAX_TOKENS` from `2048` to `4096` in `api/generate.ts`.
+2. Added heuristic JSON closing to `LayoutParser.flush()`: when strict `JSON.parse()` fails, tries appending `}`, `]}`, `]}]`, `]}]}`, `]}]}]`, `]}]}]}` in order and accepts the first result that passes `isPartialLayout()`. Recovers valid partial layouts from token-limit truncation.
+
+### Fix 4 — Anthropic 400 error on image upload (commit 5c80942)
+
+**Symptom:** Uploading a PNG returned "Anthropic error: image/jpeg but appears to be image/png".  
+**Root cause:** `api/generate.ts` hardcoded `media_type: 'image/jpeg'` for all uploaded images regardless of actual format.  
+**Fix:** Added `detectMediaType(base64: string)` which reads the base64 magic byte prefix before the content arrives at Anthropic:
+- `/9j/` → `image/jpeg`
+- `iVBORw0KGgo` → `image/png`
+- `R0lGOD` → `image/gif`
+- `UklGR` → `image/webp`
+- fallback → `image/jpeg`
+
+### Fix 5 — Runtime colspan enforcement for image-derived layouts (commit 4a60aee)
+
+**Symptom (potential):** An uploaded image showing 3 widgets side-by-side could cause Claude to output 3 widgets in one row with colspan values summing to more than 2, breaking the 2-column grid.  
+**Root cause:** The system prompt instructs Claude to enforce "colspans sum to exactly 2", but prompt instructions are not guaranteed — vision input especially can override layout intent.  
+**Fix:** Added `normalizeLayout()` + `normalizeRow()` to `src/utils/layoutParser.ts`, called on every successfully parsed layout. Rules applied in order:
+- 1 widget in row → force `colspan: 2`
+- 2 widgets in row → force each `colspan: 1`
+- 3+ widgets → chunk into pairs of `colspan:1`; any leftover single widget gets its own row at `colspan: 2`
+
+This makes the 2-column grid constraint a hard client-side invariant, not just a model instruction.
+
+---
+
 ## Sign-off
 
 - TypeScript: ✅ zero errors
 - ESLint: ✅ zero warnings  
 - Unit tests: ✅ 14/14
 - Production build: ✅ 466KB JS / 10.8KB CSS, built in 1.44s
+- Post-deployment fixes: ✅ 5 bugs resolved (commits 474f521, 160441f, 0b3e92e, 5c80942, 4a60aee)
 - **Phase 2 may begin.**
