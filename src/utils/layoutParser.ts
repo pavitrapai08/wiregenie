@@ -1,11 +1,5 @@
 import type { WireframeLayout } from '../types/index.js'
 
-/**
- * Incrementally parse a streaming JSON string into a WireframeLayout.
- * We attempt JSON.parse on each accumulated chunk. Once we get a valid
- * partial structure (at minimum { title, rows: [] }), we return it.
- * When the stream ends, we do a final strict parse.
- */
 export class LayoutParser {
   private buffer = ''
 
@@ -22,8 +16,21 @@ export class LayoutParser {
     this.buffer = ''
   }
 
+  // Strip markdown code fences — Claude sometimes wraps JSON in ```json ... ```
+  private stripFences(raw: string): string {
+    // Complete fence: ```json\n{...}\n```
+    const complete = raw.match(/^```(?:json)?\s*\n?([\s\S]*?)```\s*$/)
+    if (complete) return complete[1].trim()
+
+    // Opening fence only (stream not finished yet): ```json\n{...
+    const opening = raw.match(/^```(?:json)?\s*\n?([\s\S]*)$/)
+    if (opening) return opening[1].trim()
+
+    return raw
+  }
+
   private tryParse(strict = false): WireframeLayout | null {
-    const raw = this.buffer.trim()
+    const raw = this.stripFences(this.buffer.trim())
     if (!raw) return null
 
     // Try exact parse first
@@ -36,9 +43,8 @@ export class LayoutParser {
 
     if (strict) return null
 
-    // Heuristic: try closing the JSON at various depths to get a partial layout
-    // This lets us render progressively as rows stream in
-    const closingAttempts = [']}', ']}]', ']}]}', ']}]}]']
+    // Heuristic: close incomplete JSON to get a partial layout for progressive rendering
+    const closingAttempts = [']}', ']}]', ']}]}', ']}]}]', '}']
     for (const closing of closingAttempts) {
       try {
         const partial = JSON.parse(raw + closing) as WireframeLayout

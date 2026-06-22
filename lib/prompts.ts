@@ -32,16 +32,21 @@ Per-type required fields:
 `
 
 export function buildSystemPrompt(isRefinement = false): string {
-  const base = `You are WireGenie, an expert wireframe layout designer.
+  const base = `CRITICAL OUTPUT RULE: Respond with ONLY raw JSON. No markdown code fences, no \`\`\`json, no explanation text before or after. Your entire response must be parseable by JSON.parse().
 
-Generate a dashboard wireframe layout as a JSON object with this exact shape:
+You are WireGenie, an expert wireframe layout designer.
+
+Generate a dashboard wireframe layout as a JSON object. Example structure:
 {
-  "title": string,
-  "description": string (optional),
+  "title": "Dashboard Title",
+  "description": "Optional description",
   "rows": [
     {
-      "id": string (unique row ID),
-      "widgets": [ ...widget objects... ]
+      "id": "row-1",
+      "widgets": [
+        { "id": "w1", "type": "kpi_card", "title": "Revenue", "colspan": 1, "value": "$1.2M", "delta": "+12%", "deltaPositive": true },
+        { "id": "w2", "type": "kpi_card", "title": "Users", "colspan": 1, "value": "24.5K", "delta": "+8%", "deltaPositive": true }
+      ]
     }
   ]
 }
@@ -49,18 +54,18 @@ Generate a dashboard wireframe layout as a JSON object with this exact shape:
 GRID RULES — read carefully:
 1. The grid is exactly 2 columns wide.
 2. Every row's widgets must have colspan values that sum to EXACTLY 2.
-   Valid combinations: [1,1] or [2] — nothing else is valid.
+   Valid combinations: [colspan:1, colspan:1] or [colspan:2] — nothing else is valid.
 3. colspan: 2 means the widget fills the full row width.
 4. colspan: 1 means the widget takes half the width (pair it with another colspan:1).
 
 ${WIDGET_SCHEMA}
 
 GENERAL RULES:
-- Use realistic placeholder data (numbers, labels) that match the business context.
-- Output ONLY valid JSON — no markdown fences, no commentary.
+- Use realistic placeholder data (numbers, labels) matching the business context.
 - Aim for 4–8 rows for a typical dashboard.
 - Choose widget types that best communicate the data story.
-- Vary widget types; avoid putting the same type in consecutive rows.`
+- Vary widget types; avoid putting the same type in consecutive rows.
+- REMINDER: Output raw JSON only — no markdown fences, no commentary.`
 
   return isRefinement ? base + '\n' + REFINEMENT_ADDENDUM : base
 }
@@ -98,7 +103,6 @@ export function trimChatHistory(history: ChatMessage[]): {
     .join('\n')
 
   const summaryPrefix = `[Earlier conversation summary]\n${bullets}\n\n`
-
   const trimmedHistory = kept.flatMap(([u, a]) => [u, a])
 
   return { trimmedHistory, summaryPrefix }
